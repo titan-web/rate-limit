@@ -1,6 +1,9 @@
 """An implementation of the token bucket algorithm.
 """
 from time import time
+from threading import RLock
+
+__all__ = ("TokenBucket", )
 
 
 class TokenBucket(object):
@@ -13,20 +16,35 @@ class TokenBucket(object):
         self._capacity = float(capacity)
         self._tokens = float(capacity)
         self._fill_rate = float(fill_rate)
-        self._init_time = time()
+        self._last_time = time()
         self._is_lock = is_lock
+        self._lock = RLock()
+
+    def _get_cur_tokens(self):
+        if self._tokens < self._capacity:
+            now = time()
+            delta = self._fill_rate * (now - self._last_time)
+            self._tokens = min(self._capacity, self._tokens + delta)
+            self._last_time = now
+        return self._tokens
 
     @property
     def tokens(self):
-        if self._tokens < self._capacity:
-            now = time()
-            delta = self._fill_rate * (now - self._init_time)
-            self._tokens = min(self._capacity, self._tokens + delta)
-            self._init_time = now
-        return self._capacity
+        if self._is_lock:
+            with self._lock:
+                return self._get_cur_tokens()
+        else:
+            return self._get_cur_tokens()
 
-    def can_consume(self, tokens):
+    def _consume(self, tokens):
         if tokens <= self.tokens:
             self._tokens -= tokens
             return True
         return False
+
+    def consume(self, tokens):
+        if self._is_lock:
+            with self._lock:
+                return self._consume(tokens)
+        else:
+            return self._consume(tokens)
