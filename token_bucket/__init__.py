@@ -28,8 +28,7 @@ class TokenBucket(object):
             self._last_time = now
         return self._tokens
 
-    @property
-    def tokens(self):
+    def get_cur_tokens(self):
         if self._is_lock:
             with self._lock:
                 return self._get_cur_tokens()
@@ -37,7 +36,7 @@ class TokenBucket(object):
             return self._get_cur_tokens()
 
     def _consume(self, tokens):
-        if tokens <= self.tokens:
+        if tokens <= self.get_cur_tokens():
             self._tokens -= tokens
             return True
         return False
